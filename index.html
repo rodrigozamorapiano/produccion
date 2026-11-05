@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mesa de edición · Producción de piano</title>
+<style>
+:root{--bg:#000;--card:#0d0d10;--line:#26262c;--tx:#f2f2f4;--mut:#8b8b94;--ac:#e8b04a;--ok:#00e08a;--no:#ff4d6a;--warn:#ffb020}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.45 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;padding:14px;max-width:880px;margin:auto}
+h1{font-size:20px;margin:6px 0 2px}.sub{color:var(--mut);font-size:13px;margin-bottom:12px}
+.tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:12px}
+button,select,input,textarea{font:inherit;color:var(--tx);background:#000;border:1px solid var(--line);border-radius:10px;padding:9px 10px}
+input,select,textarea{min-width:0;width:100%}
+button{cursor:pointer;background:var(--card)}button:active{transform:scale(.98)}
+.tabs button{padding:10px 2px;font-size:14px}.tabs button.on{background:var(--ac);color:#000;border-color:var(--ac);font-weight:700}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+.card h2{font-size:15px;margin:0 0 10px}
+label{display:block;color:var(--mut);font-size:12px;margin-bottom:4px}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;align-items:end}
+.full{grid-column:1/-1}
+.p{background:var(--ac);color:#000;border-color:var(--ac);font-weight:700}
+.hint{color:var(--mut);font-size:13px;margin:8px 0 0}
+.map{display:grid;gap:2px;margin:6px 0 2px}
+.map i{height:46px;border-radius:3px;background:#15151a;border:1px dashed #5a2430}
+.map i.j{box-shadow:inset 2px 0 0 #fff}
+.map i.o{outline:2px solid var(--warn);outline-offset:-2px}
+.scale{display:grid;gap:2px;font-size:10px;color:var(--mut)}
+.scale span{text-align:left;white-space:nowrap;overflow:visible}
+.leg{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--mut);margin:10px 0 0}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+.alert{border-radius:12px;padding:10px 12px;margin-bottom:8px;font-size:14px;border:1px solid}
+.alert.ok{border-color:#0b5a3a;background:#06190f;color:var(--ok)}
+.alert.no{border-color:#6b2030;background:#1c0a0f;color:#ff8da1}
+.alert.w{border-color:#6b4a10;background:#1c1405;color:var(--warn)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{color:var(--mut);font-weight:500;text-align:left;font-size:12px;padding:6px 4px;border-bottom:1px solid var(--line)}
+td{padding:8px 4px;border-bottom:1px solid #17171b;vertical-align:top}
+.x{padding:4px 9px}
+.chip{display:inline-block;border-radius:8px;padding:2px 9px;color:#000;font-weight:700;font-size:13px}
+.mx{overflow-x:auto}.mx td,.mx th{text-align:center;white-space:nowrap}.mx td:first-child,.mx th:first-child{text-align:left}
+.cell{width:44px;height:36px;padding:0;font-weight:700}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+pre{background:#000;border:1px solid var(--line);border-radius:12px;padding:12px;white-space:pre-wrap;font:14px/1.6 ui-monospace,Menlo,Consolas,monospace;margin:0 0 10px}
+.pane{display:none}.pane.on{display:block}
+@media print{body{background:#fff;color:#000}.tabs,.noprint,h1~.sub{display:none}.pane{display:none}#p3{display:block}pre{border:0;color:#000;background:#fff}.card{border:0;background:#fff}}
+</style>
+</head>
+<body>
+<h1>🎚️ Mesa de edición</h1>
+<div class="sub" style="margin-bottom:2px;letter-spacing:.12em;text-transform:uppercase;font-size:11px">Producción de piano</div>
+<div class="sub" id="sub"></div>
+<div class="card noprint" style="padding:10px"><div class="row"><select id="os" onchange="switchObra(this.value)" style="flex:1;min-width:0"></select><button onclick="newObra()">＋ Obra</button><button id="dob" onclick="delObra()" title="Eliminar esta obra">🗑</button></div></div>
+<div class="tabs"><button id="b0" onclick="tab(0)">Mapa</button><button id="b1" onclick="tab(1)">Tomas</button><button id="b2" onclick="tab(2)">Matriz</button><button id="b3" onclick="tab(3)">Hoja</button><button id="b4" onclick="tab(4)">Datos</button></div>
+
+<!-- MAPA -->
+<div class="pane" id="p0">
+  <div class="card"><h2>Mapa de compases</h2><div id="map"></div><div class="leg" id="leg"></div></div>
+  <div id="alerts"></div>
+  <div class="card noprint"><h2>Agregar tramo</h2>
+    <div class="g">
+      <div><label>Toma</label><select id="tt"></select></div>
+      <div><label>Desde compás</label><input id="tf" type="number" min="1" inputmode="numeric"></div>
+      <div><label>Hasta compás</label><input id="tu" type="number" min="1" inputmode="numeric"></div>
+      <div class="full"><label>Nota (opcional)</label><input id="tn" placeholder="Ej.: respirar antes del c. 33, mejor pedal"></div>
+      <div class="full"><button class="p" style="width:100%" onclick="addTramo()">Agregar tramo</button></div>
+    </div><p class="hint" id="th"></p></div>
+  <div class="card"><h2>Tramos de edición</h2><div id="tl"></div></div>
+</div>
+
+<!-- TOMAS -->
+<div class="pane" id="p1">
+  <div class="card"><h2>Datos de la obra</h2><div class="g">
+    <div class="full"><label>Título</label><input id="ot" oninput="setObra()"></div>
+    <div><label>Total de compases</label><input id="oc" type="number" min="1" inputmode="numeric" oninput="setObra()"></div></div></div>
+  <div class="card"><h2>Agregar toma</h2><div class="g">
+    <div><label>Fecha</label><input id="kd" type="date"></div>
+    <div><label>Calificación general</label><select id="kr"><option value="0">—</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div>
+    <div class="full"><label>Notas</label><input id="kn" placeholder="Ej.: muy buena energía, ruido en c. 20"></div>
+    <div class="full"><button class="p" style="width:100%" onclick="addToma()">Agregar toma</button></div></div></div>
+  <div class="card"><h2>Mis tomas</h2><div id="kl"></div></div>
+</div>
+
+<!-- MATRIZ -->
+<div class="pane" id="p2">
+  <div class="card"><h2>Matriz de evaluación</h2>
+    <p class="hint" style="margin:0 0 10px">Toca una celda para calificar esa sección en esa toma: 1 regular · 2 buena · 3 la mejor.</p>
+    <div class="mx" id="mx"></div>
+    <div class="row" style="margin-top:12px"><button class="p" onclick="propose()">Proponer mapa con las mejores</button></div>
+    <p class="hint" id="mh"></p></div>
+  <div class="card noprint"><h2>Agregar sección</h2><div class="g">
+    <div class="full"><label>Nombre</label><input id="sn" placeholder="Ej.: Frase A"></div>
+    <div><label>Desde</label><input id="sf" type="number" min="1" inputmode="numeric"></div>
+    <div><label>Hasta</label><input id="su" type="number" min="1" inputmode="numeric"></div>
+    <div class="full"><button style="width:100%" onclick="addSec()">Agregar sección</button></div></div>
+    <p class="hint" id="sh">Las secciones son las frases o bloques donde sí se puede cortar con naturalidad.</p></div>
+</div>
+
+<!-- HOJA -->
+<div class="pane" id="p3">
+  <div class="card"><h2>Hoja para el editor</h2><pre id="sheet"></pre>
+    <div class="row noprint" style="margin-bottom:10px"><button id="sh1" onclick="setAll(false)">Esta obra</button><button id="sh2" onclick="setAll(true)">Todo el disco</button></div><div class="row noprint"><button class="p" onclick="copySheet()">Copiar texto</button><button onclick="window.print()">Imprimir / PDF</button></div><p class="hint" id="ch"></p></div>
+</div>
+
+
+<!-- DATOS -->
+<div class="pane" id="p4">
+  <div class="card"><h2>Datos</h2>
+    <div class="row"><button onclick="demo()">Cargar ejemplo</button><button onclick="exp()">Exportar respaldo</button><button onclick="document.getElementById('imp').click()">Importar respaldo</button><button id="clr" onclick="clr()">Borrar todo</button></div>
+    <input id="imp" type="file" accept="application/json,.json" style="display:none" onchange="imp(this.files[0])">
+    <p class="hint" id="dm">Tus datos se guardan en este navegador. Exporta un respaldo después de cada sesión de grabación. Importar reemplaza todo.</p></div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const COL=["#e8b04a","#38bdf8","#00e08a","#ff4d6a","#b794f6","#f97316","#2dd4bf","#f472b6","#a3e635","#94a3b8"];
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uid=()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36);
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+const emptyObra=t=>({id:"o"+uid(),obra:{title:t||"",total:60},tomas:[],tramos:[],secciones:[],cal:{}});
+function obraSample(){
+  const t=[1,2,3,4,5,6,7,8].map(n=>({id:"t"+n,n,date:"2026-11-0"+Math.min(4,Math.ceil(n/2)),rate:[3,3,2,4,3,3,2,5][n-1],note:["Buena entrada, tempo algo rápido","Ruido de silla en c. 20","Pedal confuso en la sección media","Mejor frase central","Fatiga al final","Cierre muy bello","Error en c. 40","Final convincente y cálido"][n-1]}));
+  const s=[["Frase A",1,16],["Frase B",17,32],["Frase C",33,44],["Frase D / cierre",45,62]].map((a,i)=>({id:"s"+i,name:a[0],from:a[1],to:a[2]}));
+  const c={s0:{t1:3,t2:2,t4:2,t8:1},s1:{t1:3,t3:1,t4:2,t8:2},s2:{t4:3,t7:1,t8:2},s3:{t5:1,t6:2,t8:3}};
+  return{id:"o"+uid(),obra:{title:"Mazurka · Szymanowski",total:62},tomas:t,
+    tramos:[{id:uid(),take:"t1",from:1,to:33,note:"Entrada con carácter"},{id:uid(),take:"t4",from:33,to:45,note:"Frase central más fluida"},{id:uid(),take:"t8",from:45,to:62,note:"Cierre; cuidar la reverberación final"}],
+    secciones:s,cal:c};
+}
+const sample=()=>{const o=obraSample();return{obras:[o],cur:o.id}};
+const KEY="produccion_v2";
+let R=null,D=null,tabN=0,showAll=false;
+function load(){
+  try{const r=JSON.parse(localStorage.getItem(KEY));if(r&&Array.isArray(r.obras)&&r.obras.length)return r}catch(e){}
+  try{const r=JSON.parse(localStorage.getItem("produccion_v1"));if(r&&r.obra){const o={id:"o"+uid(),...r};return{obras:[o],cur:o.id}}}catch(e){}
+  return null;
+}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(R))}catch(e){}}
+function pick(){D=R.obras.find(o=>o.id===R.cur)||R.obras[0];R.cur=D.id}
+R=load()||sample();pick();
+const oname=o=>o.obra.title||"Obra sin título";
+function renderObraSel(){$("os").innerHTML=R.obras.map(o=>`<option value="${o.id}">${esc(oname(o))}</option>`).join("");$("os").value=R.cur}
+function switchObra(id){R.cur=id;pick();armedP=false;save();render()}
+function newObra(){const o=emptyObra("");R.obras.push(o);R.cur=o.id;pick();save();render();tab(1);$("ot").focus()}
+let armedO=false;
+function delObra(){
+  if(!armedO){armedO=true;$("dob").textContent="¿Seguro?";setTimeout(()=>{armedO=false;$("dob").textContent="🗑"},3000);return}
+  armedO=false;$("dob").textContent="🗑";
+  R.obras=R.obras.filter(o=>o.id!==D.id);if(!R.obras.length)R.obras=[emptyObra("")];
+  R.cur=R.obras[0].id;pick();save();render();
+}
+function setAll(v){showAll=v;renderSheet()}
+
+function tab(n){tabN=n;for(let i=0;i<5;i++){$("p"+i).className="pane"+(i===n?" on":"");$("b"+i).className=i===n?"on":""}render()}
+const tcol=id=>{const i=D.tomas.findIndex(t=>t.id===id);return i<0?"#555":COL[i%COL.length]};
+const tname=id=>{const t=D.tomas.find(t=>t.id===id);return t?"Toma "+t.n:"Toma eliminada"};
+const sortedT=()=>[...D.tramos].sort((a,b)=>a.from-b.from||a.to-b.to);
+
+function analyze(){
+  const N=D.obra.total,tr=sortedT(),cov=new Array(N+2).fill(0),owner=new Array(N+2).fill(null),joins=[],warns=[],ov=new Set();
+  tr.forEach((x,i)=>{for(let b=Math.max(1,x.from);b<=Math.min(N,x.to);b++){cov[b]++;owner[b]=x.take}});
+  tr.forEach((x,i)=>{if(i>0){const p=tr[i-1];
+    if(x.from<p.to){for(let b=x.from;b<p.to;b++)ov.add(b);warns.push({k:"no",t:`Los tramos de ${tname(p.take)} (c. ${p.from}–${p.to}) y ${tname(x.take)} (c. ${x.from}–${x.to}) se traslapan en los compases ${x.from}–${p.to-1}.`})}
+    if(p.take!==x.take&&x.from<=p.to+1)joins.push({at:x.from,a:p.take,b:x.take})}});
+  const gaps=[];let g=null;
+  for(let b=1;b<=N;b++){if(!cov[b]){if(g===null)g=b}else if(g!==null){gaps.push([g,b-1]);g=null}}
+  if(g!==null)gaps.push([g,N]);
+  const bounds=new Set();D.secciones.forEach(s=>{bounds.add(s.from);bounds.add(s.to)});
+  const risky=D.secciones.length?joins.filter(j=>!bounds.has(j.at)&&!bounds.has(j.at-1)):[];
+  return{N,tr,cov,owner,joins,gaps,warns,ov,risky};
+}
+
+function render(){
+  renderObraSel();
+  $("sub").textContent=D.obra.title?D.obra.title+" · "+D.obra.total+" compases":"Sin título";
+  renderMap();renderTomas();renderMx();renderSheet();
+  $("ot").value=D.obra.title;$("oc").value=D.obra.total;
+}
+function renderMap(){
+  const A=analyze(),N=A.N;
+  const joinSet=new Set(A.joins.map(j=>j.at));
+  let h=`<div class="map" style="grid-template-columns:repeat(${N},1fr)">`;
+  for(let b=1;b<=N;b++){const o=A.owner[b];h+=`<i title="c. ${b}${o?" · "+esc(tname(o)):" · sin asignar"}" class="${joinSet.has(b)?"j ":""}${A.ov.has(b)?"o":""}" style="${o?`background:${tcol(o)};border:0`:""}"></i>`}
+  h+=`</div><div class="scale" style="grid-template-columns:repeat(${N},1fr)">`;
+  for(let b=1;b<=N;b++)h+=`<span>${b===1||b%10===0||b===N?b:""}</span>`;
+  $("map").innerHTML=h+"</div>";
+  const used=[...new Set(A.tr.map(x=>x.take))];
+  $("leg").innerHTML=used.length?used.map(id=>`<span><i class="dot" style="background:${tcol(id)}"></i>${esc(tname(id))}</span>`).join("")+`<span>▏ línea blanca = empalme</span>`:"Aún no hay tramos.";
+  let al="";
+  if(!A.tr.length)al=`<div class="alert w">Agrega el primer tramo para dibujar el mapa.</div>`;
+  else{
+    if(!A.gaps.length&&!A.warns.length)al+=`<div class="alert ok">✅ Cobertura completa: los compases 1–${N} están cubiertos sin traslapes.</div>`;
+    A.gaps.forEach(g=>al+=`<div class="alert no">⛔ Hueco: ${g[0]===g[1]?"el compás "+g[0]:"los compases "+g[0]+"–"+g[1]} sin asignar.</div>`);
+    A.warns.forEach(w=>al+=`<div class="alert no">⛔ ${esc(w.t)}</div>`);
+    A.risky.forEach(j=>al+=`<div class="alert w">⚠️ Empalme en el compás ${j.at} (${esc(tname(j.a))} → ${esc(tname(j.b))}) cae a mitad de frase. Revísalo.</div>`);
+    if(A.joins.length)al+=`<div class="alert ok" style="color:var(--tx);border-color:var(--line);background:var(--card)">${A.joins.length} empalme${A.joins.length>1?"s":""}: ${A.joins.map(j=>"c. "+j.at).join(" · ")}</div>`;
+  }
+  $("alerts").innerHTML=al;
+  const sel=$("tt"),cur=sel.value;sel.innerHTML=D.tomas.map(t=>`<option value="${t.id}">Toma ${t.n}</option>`).join("");if(cur)sel.value=cur;
+  $("tl").innerHTML=A.tr.length?`<table><tr><th>Toma</th><th>Compases</th><th>Nota</th><th></th></tr>`+A.tr.map(x=>`<tr><td><span class="chip" style="background:${tcol(x.take)}">${esc(tname(x.take))}</span></td><td>${x.from}–${x.to}</td><td>${esc(x.note)||"—"}</td><td><button class="x" onclick="delTramo('${x.id}')">✕</button></td></tr>`).join("")+`</table>`:`<p class="hint">Sin tramos todavía.</p>`;
+}
+function addTramo(){
+  const take=$("tt").value,f=parseInt($("tf").value),u=parseInt($("tu").value);
+  if(!take)return $("th").textContent="Primero agrega al menos una toma.";
+  if(!(f>=1)||!(u>=f)||u>D.obra.total)return $("th").textContent=`Indica compases válidos: de 1 a ${D.obra.total}, con "hasta" mayor o igual que "desde".`;
+  D.tramos.push({id:uid(),take,from:f,to:u,note:$("tn").value.trim()});save();$("tf").value=u;$("tu").value="";$("tn").value="";$("th").textContent="Tramo agregado.";render();
+}
+function delTramo(id){D.tramos=D.tramos.filter(x=>x.id!==id);save();render()}
+
+function renderTomas(){
+  $("kd").value=$("kd").value||today();
+  $("kl").innerHTML=D.tomas.length?`<table><tr><th>Toma</th><th>Fecha</th><th>★</th><th>Notas</th><th></th></tr>`+D.tomas.map(t=>`<tr><td><span class="chip" style="background:${tcol(t.id)}">${t.n}</span></td><td>${esc(t.date)}</td><td>${t.rate?"★".repeat(t.rate):"—"}</td><td>${esc(t.note)||"—"}</td><td><button class="x" onclick="delToma('${t.id}')">✕</button></td></tr>`).join("")+`</table>`:`<p class="hint">Aún no hay tomas.</p>`;
+}
+function addToma(){
+  const n=D.tomas.reduce((m,t)=>Math.max(m,t.n),0)+1;
+  D.tomas.push({id:"t"+uid(),n,date:$("kd").value||today(),rate:parseInt($("kr").value)||0,note:$("kn").value.trim()});
+  $("kn").value="";$("kr").value="0";save();render();
+}
+function delToma(id){
+  const used=D.tramos.some(x=>x.take===id);
+  if(used&&!confirm("Esta toma se usa en el mapa. ¿Eliminarla junto con sus tramos?"))return;
+  D.tomas=D.tomas.filter(t=>t.id!==id);D.tramos=D.tramos.filter(x=>x.take!==id);Object.values(D.cal).forEach(r=>delete r[id]);save();render();
+}
+function setObra(){D.obra.title=$("ot").value;const n=parseInt($("oc").value);if(n>=1&&n<=999)D.obra.total=n;save();$("sub").textContent=D.obra.title?D.obra.title+" · "+D.obra.total+" compases":"Sin título";renderObraSel();renderMap();renderSheet()}
+
+/* matriz */
+const RC=["#15151a","#6b5a2a","#2f7d52","#00e08a"],RT=["·","1","2","3"];
+function renderMx(){
+  if(!D.secciones.length||!D.tomas.length){$("mx").innerHTML=`<p class="hint">Agrega tomas y secciones para evaluar.</p>`;return}
+  const secs=[...D.secciones].sort((a,b)=>a.from-b.from);
+  let h=`<table><tr><th>Sección</th>`+D.tomas.map(t=>`<th><span class="chip" style="background:${tcol(t.id)}">${t.n}</span></th>`).join("")+`<th></th></tr>`;
+  secs.forEach(s=>{h+=`<tr><td>${esc(s.name)}<br><span style="color:var(--mut);font-size:12px">c. ${s.from}–${s.to}</span></td>`+D.tomas.map(t=>{const v=(D.cal[s.id]||{})[t.id]||0;return`<td><button class="cell" style="background:${RC[v]};color:${v>=2?"#000":"var(--tx)"}" onclick="rate('${s.id}','${t.id}')">${RT[v]}</button></td>`}).join("")+`<td><button class="x" onclick="delSec('${s.id}')">✕</button></td></tr>`});
+  $("mx").innerHTML=h+"</table>";
+}
+function rate(s,t){const r=D.cal[s]||(D.cal[s]={});r[t]=((r[t]||0)+1)%4;if(!r[t])delete r[t];save();renderMx()}
+function addSec(){
+  const f=parseInt($("sf").value),u=parseInt($("su").value),n=$("sn").value.trim();
+  if(!n||!(f>=1)||!(u>=f)||u>D.obra.total)return $("sh").textContent=`Escribe un nombre y compases válidos (1 a ${D.obra.total}).`;
+  D.secciones.push({id:"s"+uid(),name:n,from:f,to:u});$("sn").value=$("sf").value=$("su").value="";$("sh").textContent="Sección agregada.";save();render();
+}
+function delSec(id){D.secciones=D.secciones.filter(s=>s.id!==id);delete D.cal[id];save();render()}
+let armedP=false;
+function propose(){
+  if(!D.secciones.length)return $("mh").textContent="Primero agrega secciones.";
+  const secs=[...D.secciones].sort((a,b)=>a.from-b.from),out=[];
+  for(const s of secs){
+    const r=D.cal[s.id]||{};let best=null,bv=0;
+    D.tomas.forEach(t=>{const v=r[t.id]||0;if(v>bv||(v===bv&&v>0&&best&&t.n<best.n)){bv=v;best=t}});
+    if(!best)return $("mh").textContent=`La sección "${s.name}" no tiene calificaciones: califica al menos una toma.`;
+    const last=out[out.length-1];
+    if(last&&last.take===best.id&&s.from<=last.to+1)last.to=s.to;else out.push({id:uid(),take:best.id,from:out.length?s.from:s.from,to:s.to,note:""});
+  }
+  if(D.tramos.length&&!armedP){armedP=true;return $("mh").textContent="Esto reemplaza los tramos actuales. Vuelve a tocar el botón para confirmar."}
+  armedP=false;D.tramos=out;save();$("mh").textContent="Mapa propuesto: revísalo en la pestaña Mapa.";render();
+}
+
+/* hoja */
+function sheetText(){
+  const A=analyze(),L=[];
+  L.push((D.obra.title||"Obra").toUpperCase());L.push(D.obra.total+" compases · "+today());L.push("");
+  if(!A.tr.length)L.push("Sin tramos definidos.");
+  A.tr.forEach((x,i)=>L.push(`${i+1}. ${tname(x.take)} — compases ${x.from} a ${x.to}`+(x.note?`  (${x.note})`:"")));
+  if(A.joins.length){L.push("");L.push("EMPALMES: "+A.joins.map(j=>`c. ${j.at} (${tname(j.a)} → ${tname(j.b)})`).join(" · "))}
+  if(A.gaps.length){L.push("");L.push("⚠ HUECOS: "+A.gaps.map(g=>g[0]===g[1]?"c. "+g[0]:`c. ${g[0]}–${g[1]}`).join(", "))}
+  const ts=[...new Set(A.tr.map(x=>x.take))].map(id=>D.tomas.find(t=>t.id===id)).filter(Boolean).filter(t=>t.note);
+  if(ts.length){L.push("");L.push("NOTAS DE TOMAS");ts.forEach(t=>L.push(`Toma ${t.n} (${t.date}): ${t.note}`))}
+  return L.join("\n");
+}
+function sheetAll(){const keep=D;const out=R.obras.map(o=>{D=o;return sheetText()});D=keep;return out.join("\n\n————————————\n\n")}
+const curSheet=()=>showAll?sheetAll():sheetText();
+function renderSheet(){$("sheet").textContent=curSheet();$("sh1").className=showAll?"":"p";$("sh2").className=showAll?"p":""}
+function copySheet(){const t=curSheet();(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>$("ch").textContent="Copiado.").catch(()=>{const r=document.createRange();r.selectNodeContents($("sheet"));const s=getSelection();s.removeAllRanges();s.addRange(r);$("ch").textContent="Texto seleccionado: cópialo manualmente."})}
+
+/* datos */
+function demo(){const o=obraSample();R.obras.push(o);R.cur=o.id;pick();save();render();$("dm").textContent="Ejemplo agregado como una obra más."}
+function exp(){try{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify({app:"produccion-musical",version:2,...R},null,1)],{type:"application/json"}));a.download="produccion-"+today()+".json";a.click();$("dm").textContent="Respaldo exportado."}catch(e){$("dm").textContent="No se pudo exportar desde este entorno."}}
+function cleanObra(o){
+  if(!o||typeof o!=="object"||!o.obra||!Array.isArray(o.tomas)||!Array.isArray(o.tramos))throw 0;
+  const n=v=>Math.max(1,Math.min(999,parseInt(v)||1)),s=v=>String(v==null?"":v).slice(0,300);
+  const tomas=o.tomas.map(t=>({id:s(t.id)||"t"+uid(),n:n(t.n),date:s(t.date),rate:Math.max(0,Math.min(5,parseInt(t.rate)||0)),note:s(t.note)}));
+  const ids=new Set(tomas.map(t=>t.id));
+  return{id:s(o.id)||"o"+uid(),obra:{title:s(o.obra.title),total:n(o.obra.total)},tomas,
+    tramos:o.tramos.filter(x=>ids.has(x.take)).map(x=>({id:s(x.id)||uid(),take:x.take,from:n(x.from),to:n(x.to),note:s(x.note)})),
+    secciones:(Array.isArray(o.secciones)?o.secciones:[]).map(x=>({id:s(x.id)||"s"+uid(),name:s(x.name),from:n(x.from),to:n(x.to)})),
+    cal:(o.cal&&typeof o.cal==="object")?Object.fromEntries(Object.entries(o.cal).map(([k,r])=>[k,Object.fromEntries(Object.entries(r||{}).filter(([t,v])=>ids.has(t)&&v>=1&&v<=3).map(([t,v])=>[t,v|0]))])):{}};
+}
+function clean(o){
+  if(o&&Array.isArray(o.obras)){
+    if(!o.obras.length)throw 0;
+    const obras=o.obras.map(cleanObra);const seen=new Set();obras.forEach(x=>{while(seen.has(x.id))x.id="o"+uid();seen.add(x.id)});
+    return{obras,cur:obras.some(x=>x.id===o.cur)?o.cur:obras[0].id};
+  }
+  const x=cleanObra(o);return{obras:[x],cur:x.id}; /* respaldo de la versión de una sola obra */
+}
+function imp(f){if(!f)return;const r=new FileReader();r.onload=()=>{try{R=clean(JSON.parse(r.result));pick();save();render();$("dm").textContent="Respaldo importado."}catch(e){$("dm").textContent="El archivo no es un respaldo válido."}};r.readAsText(f)}
+let armed=false;
+function clr(){if(!armed){armed=true;$("clr").textContent="¿Seguro? Toca otra vez";return}R={obras:[emptyObra("")]};R.cur=R.obras[0].id;pick();save();armed=false;$("clr").textContent="Borrar todo";render()}
+tab(0);
+</script>
+</body>
+</html>
